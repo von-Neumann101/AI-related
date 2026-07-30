@@ -1,5 +1,4 @@
-# LLaVA
-**L**arge **L**anguage **a**nd **V**ision **A**ssistant
+LLaVA——**L**arge **L**anguage **a**nd **V**ision **A**ssistant
 # Visual Instruction Tuning
 ## Architecture
 ![[Pasted image 20260730103422.png|570]]
