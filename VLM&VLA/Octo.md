@@ -20,3 +20,4 @@ $$
 x ^ { k \, - \, 1 } = \alpha ( x ^ { k } - \gamma \epsilon _ { \theta } ( x ^ { k }, e, k ) + \mathcal { N } \big ( 0, \sigma ^ { 2 } I \big ) ).
 $$
 其中$\epsilon_\theta$是去噪网络，其接收时间步$k$，Transformer输出的Embedding $e$，和上一步的向量$x^k$。参数$\alpha,\gamma,\sigma$是noise scheduler，文章中使用标准余弦scheduler
+#Diffusion-Model #Transformer #卷积神经网络 #VLA 
