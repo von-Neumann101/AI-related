@@ -39,3 +39,15 @@ $$
 ![[Pasted image 20260810215349.png|654]]
 模型是一个5层 ReLU MLP，具有256维的隐藏单元
 ### Toy Experiment
+实际的数据为$\hat x\in\mathbb R^d$，而模型实际看到的是$x=P\hat x\in\mathbb R^D,\quad d<D$（此处$d=2$）
+矩阵$P\in\mathbb R^{D\times d}$负责将低维数据$\hat x$映射到一个高维空间。为了保证数据在映射后**不出现本质性变化**，所以要求$P$是正定的——$||x||=||\hat x||$且$||P\hat x_1-P\hat x_2||=||\hat x_1-\hat x_2||$
+
+这么做是为了人为制造一个流形假设：**所有的真实数据 $x$ 可以被 $P$ 的前 $2$ 列张成，即使他实际处在一个 $D$ 维空间中**
+# “Just Image Transformers” for Diffusion
+由上面的实验可以得出一个结论——一个简单的ViT仅使用$x-\text{pred}$就能做得很好
+## JiT
+![[Pasted image 20260811170714.png|424]]
+
+这篇论文的重点几乎结束了
+# Summary
+当观测/patch 维度很高、而网络存在信息瓶颈（hidden width 小于数据维度）时，直接做 x-prediction 比 ϵ-prediction 或 v-prediction 更容易，因为自然数据 x 在流形假设下具有较低的 intrinsic dimension，而 ϵ 和 v 包含高维、off-manifold 的噪声信息。
