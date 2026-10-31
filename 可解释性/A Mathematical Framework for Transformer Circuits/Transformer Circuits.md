@@ -70,7 +70,7 @@ $$
 
 注意到 $W_O$ 和 $W_V,\ W_K$，总是成对出现—— $W_OW_V,\ W_Q^TW_K$ 两个低秩矩阵，从某种意义上说，KQV 只是计算这些低秩矩阵产生的中间结果
 
-**虚拟注意力头**：
+**虚拟注意力头**： ^d5d6e3
 $$
 \begin{aligned} &(A^{h_2}\otimes W_{OV}^{h_ 2}) (A^{h_1}\otimes W_{OV}^{h_ 1})\\ &\qquad = (A^{h _2}A^{h_ 1}) \otimes (W_{OV}^{h _2}W_{OV}^{h_ 1}) \end{aligned}
 $$
@@ -153,7 +153,7 @@ OV 学会了：学会了只要关注 `keep`，就提高 `mind` 和 `bay` 的 Log
 - `keep … at → mind`
 - `keep … in → bay`
 
-OV 电路只知道它读取的是 `keep`，并不知道当前 Token 是 `in` 还是 `at`
+OV 电路只知道它读取的是 `keep`，并不知道当前 Token 是 `in` 还是 `at`。这种独立性又好又坏
 ## Summarizing OV/QK Matrices
 **OV 和 QK 矩阵的秩极低**：
 形状是 $50000\times50000$，但是秩只有 $d_{\text{head}}=64\text{ or } 128$
@@ -164,3 +164,90 @@ OV 电路只知道它读取的是 `keep`，并不知道当前 Token 是 `in` 还
 **复制行为广泛存在于 OV 矩阵中，而且可以说是其中最有趣的行为之一**：
 > 合适的矩阵分解方法或降维方法，可能会提供非常有价值的信息
 
+**复制**：
+一种自然考虑复制的方法，是研究矩阵的特征值、特征向量——OV 电路的某个特征向量具有正特征值，每个正特征值都意味着这个电路在每一个特征方向的“复制倾向”，一个 token向量表示为这样线性组合。
+显然 OV 电路不大可能是正定的，同一集合内的 Token 会提高其他同集合 Token 的概率，同时降低另一集合中 Token 的概率，例如：
+- 一组表示男性词汇，另一组表示女性词汇。
+- 一组表示单数词汇，另一组表示复数词汇。
+
+> 在实验中，12 个注意力头里，有 10 个似乎表现出显著的复制行为！
+> ![[Pasted image 20261028114112.png]]
+> 我们不认为它是完美的，但它似乎能够提供相当有力的复制行为证据，而且在实验中与人工检查以及其他定义高度一致。
+# Two-Layer Attention-Only Transformers
+> 深度学习研究的是具有许多层的深层模型。从经验上看，这些模型非常强大。那么，这种能力究竟来自哪里？
+> 一种直觉是：深度允许模型进行**组合**（Composition），而组合又带来了强大的表达能力。（如第二层组合第一层的信息）
+> 注意力头之间的组合，是单层与双层纯注意力 Transformer 的关键区别。
+> **如果不存在组合，那么双层模型只不过是拥有了更多注意力头，用来实现更多跳跃三元语法。**
+### Three Kinds of Composition
+第二层的 $W_Q,W_K,W_V$ 读取第一层写入残差流对应子空间的信息，然后通过 $W_O$ 所确定的子空间把信息协会残差流
+QK 是对注意力模式的影响，而 V 是对信息的影响。QK 能产生更加复杂的注意力模式（类似于函数的复合），而 V 对于信息的影响是独立于注意力的
+## Path Expansion of Logits
+$$
+\boxed{ \begin{aligned} T={}& \mathrm{Id}\otimes W_UW_E\\[2pt] &+\sum_{h\in H_1\cup H_2} A^h\otimes(W_UW_{OV}^{h}W_E)\\[2pt] &+\sum_{h_2\in H_2}\sum_{h_1\in H_1} (A^{h_2}A^{h_1})\\ &\qquad\otimes (W_UW_{OV}^{h_2}W_{OV}^{h_1}W_E) \end{aligned} } 
+$$
+值得注意的是，单层出现的组件仍然独立的出现——这表明了残差流信息通道的作用。
+我们关注第三项，我们称之为[[Transformer Circuits#^d5d6e3|虚拟注意力头路径]]。这和普通的注意力头很相似——由两个注意力头的注意力模式组合得到
+## Path Expansion of QK Circuit
+用 $h\in H_2$ 表示正在分析的第二层注意力头，$h_q,h_k\in H_1$ 表示第一层注意力头，$C_{QK}^h$ 是将 Token 映射为注意力分数的 QK 电路：
+$$
+\boxed{ \begin{aligned} C_{QK}^{h} ={}& \mathrm{Id}\otimes\mathrm{Id}\otimes (W_E^TW_{QK}^{h}W_E) \\[3pt] &+\sum_{h_q\in H_1} A^{h_q}\otimes\mathrm{Id} \\[-2pt] &\qquad\otimes \left( W_E^T(W_{OV}^{h_q})^TW_{QK}^{h}W_E \right) \\[3pt] &+\sum_{h_k\in H_1} \mathrm{Id}\otimes A^{h_k} \\[-2pt] &\qquad\otimes \left( W_E^TW_{QK}^{h}W_{OV}^{h_k}W_E \right) \\[3pt] &+\sum_{h_q\in H_1}\sum_{h_k\in H_1} A^{h_q}\otimes A^{h_k} \\[-2pt] &\qquad\otimes \left( W_E^T(W_{OV}^{h_q})^TW_{QK}^{h} W_{OV}^{h_k}W_E \right) \end{aligned} }
+$$
+这里的每一项都是如下形式：
+$$
+A_q\otimes A_k\otimes W
+$$
+- $A_q$ 描述 Query 一侧的信息如何在不同 Token 之间移动
+- $A_k$ 描述 Key 一侧的信息如何在不同 Token 之间移动
+- $W$ 描述两侧的信息如何组合形成注意力分数
+## Analyzing a Two-Layer Model
+> 小型双层模型似乎经常（但并非总是）具有一种非常简单的组合结构：唯一的组合形式，是第一层中的某一个注意力头与第二层中的若干注意力头之间发生的 K-Composition。
+
+第一层的一个注意力头，主要关注前一个 Token，也会较小程度上关注当前位置恶魂再往前两个位置的 Token（红色）
+第二层中的注意力头，就是我们所称的**归纳头**
+
+定义了一个量，用于计算第二层注意力头的 QKV 多大程度上读取了某个第一层注意力头写入的信息（见原文）
+大多数注意力头的组合强度都远小于随机矩阵产生的组合强度。
+![[Pasted image 20261029194118.png]]
+***（待研究）***
+
+**Value 加权注意力模式**：
+缩放因子为源位置 Value 向量的范数：${ \widetilde A_{i,j}^{h} = A_{i,j}^{h}\left\|v_j^h\right\| }$
+> 这种方法特别有用，因为当注意力头没有找到自己正在寻找的 Token 时，有时会将某些 Token 当作默认位置或“休息位置”。这些默认位置的 Value 向量通常很小，因此 Value 加权注意力模式能够提供更多有效信息。
+
+水绿色的归纳头，经常会关注此前出现过的、位于当前下一个 Token 的先前实例的位置。
+## Induction Heads
+![[Pasted image 20261029204700.png|486]]
+在输入 `Pot` 这个 token 的时候，归纳头注意之前的 `ters`
+> 归纳头会在上下文中搜索当前 Token 此前出现过的位置。如果没有找到，它就会关注第一个 Token（在我们的模型中，这是一个放在序列开头的特殊 Token），并且不执行任何操作。(Attention Sink)
+
+单层模型的复制头：
+$$
+[b]\ldots[a]\rightarrow[b]
+$$
+双层模型的归纳头：
+$$
+\boxed{ [a][b]\ldots[a]\rightarrow[b] }
+$$
+可以看出，归纳头找到了某种**语言模式**——它不再只是笼统地寻找可能重复某个 Token 的位置，而是知道这个 Token 此前如何被使用，并寻找类似的情况（他能**从输入里随机应变**，而不是像复制头一样**统计训练数据里出现的规律**）
+
+![[Pasted image 20261030151006.png]]
+蓝色代表 logit effect，定义为 $\left( W_U W_O^h r_{\mathrm{pres\_tok}}^h \right)_{\mathrm{next\_tok}}$ ，表示这个头在当前 token 上对下一个 token 的 Logits 的贡献
+红色就是注意力
+### How Induction Heads Work
+![[Pasted image 20261030152742.png]]
+*Key 和 Query 的颜色强度表示各个 Token 对注意力分数的提升幅度*
+
+前一层把前一个 token 的信息写入（大多是复制头）：
+$$
+x_j^{(1)} = x_j^{(0)}+ W_{OV}^{\mathrm{prev}}x_{j-1}^{(0)}
+$$
+第二层的 Key：
+$$
+K_j= W_K^{(2)}x_j^{(0)} + W_K^{(2)}W_{OV}^{\mathrm{prev}}x_{j-1}^{(0)}
+$$
+这说明位置 $j$ 的 Key，包含了位置 $j-1$ 的 Token 信息。同时，另一部分是来源于原始信息的（这里也许会表现为复制头），但是真正经过前一层加工的信息是前一个 token——原本为 `[A,B,C,A]` 在第二层 Key 中变为 `[_,A,B,C]`
+假设目前读最后一个 A，注意这里的 Q：
+$$
+ Q_4=W_Q^{(2)}x_4^{(1)}
+$$
+而第二个位置的 B 包含第一个 A 的信息，所以 $Q_4K_2^T$ 是在比较 $A$ 和 $A$，同时注意到这种点积表示的是两个向量的相似度，这会使得位置 4（当前位置）对位置 2 非常关注
